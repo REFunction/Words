@@ -1,9 +1,14 @@
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,7 +20,7 @@ public class words
 	static int TotalNum = 0;
 	static int FinishedNum = 0;
 	static int MaxThreadNum = 8;
-	static int NowThreadNum = 0;
+	static AtomicInteger NowThreadNum = new AtomicInteger(0);
 
 	public static void ReadOnlyWordsFromFile()
 	{
@@ -29,7 +34,7 @@ public class words
 				if (line.length() > 0)
 					TotalNum++;
 			}
-			MaxThreadNum = TotalNum / 3;
+			MaxThreadNum = TotalNum;
 			if (MaxThreadNum > 30)
 				MaxThreadNum = 30;
 			if (MaxThreadNum <= 0)
@@ -43,14 +48,13 @@ public class words
 				if (line.length() == 0)
 					continue;
 				String English = line;
-				while (NowThreadNum >= MaxThreadNum)
+				while (NowThreadNum.get() >= MaxThreadNum)
 					Thread.sleep(300);
 				new Thread(new WordSearchOnline(English)).start();
 				GUI.ProcessBar.setValue(WordsMap.size());
-				Thread.sleep(100);
 			}
 			br.close();
-			while (NowThreadNum != 0)
+			while (NowThreadNum.get() != 0)
 			{
 				Thread.sleep(300);
 				GUI.ProcessBar.setValue(WordsMap.size());
@@ -117,7 +121,7 @@ public class words
 				}
 				SelectNum--;
 			}
-			if (!SelectWord.equals(LastWord))
+			if (!SelectWord.equals(LastWord) && !SelectWord.equals("Error"))
 				break;
 			SelectNum = (int) (Math.random() * WordsMap.size());
 		}
@@ -144,10 +148,16 @@ public class words
 	public static Word SearchWordOnline(String word)
 	{
 		Word w = new Word(word);
-		String s = Http.httpRequest("http://dict.youdao.com/w/eng/" + word + "/#keyfrom=dict2.index", "GET", null);
-		if (s.contains("您要找的是不是"))
-			return null;
-		String content = s.split("trans-container")[1];
+		String content = null; 
+		String s = null;
+		do
+		{			
+			s = Http.httpRequest("http://dict.youdao.com/w/eng/" + word + "/#keyfrom=dict2.index", "GET", null);
+			if (s.contains("您要找的是不是"))
+				return null;
+			content = s.split("trans-container")[1];
+		}while(!content.contains("<li>"));
+		
 		for (int i = 1; i < content.split("<li>").length; i++)
 		{
 			String Chinese = content.split("<li>")[i];
@@ -155,22 +165,38 @@ public class words
 			Chinese = Chinese.replaceAll("</li>", "");
 			Chinese = Chinese.replaceAll("	", "");
 			Chinese = FilterString(Chinese);
+
 			w.Chinese.add(Chinese);
 		}
 		//获取发音
 		String info = Http.httpRequest("http://www.iciba.com/" + word, "GET", null);
 		if (info.contains("sound"))
 		{
-			String Mp3Route = info.split("sound")[1];
-			Mp3Route = Mp3Route.substring(0, Mp3Route.lastIndexOf("mp3")) + "mp3";
-			Mp3Route = Mp3Route.substring(Mp3Route.indexOf("http"),Mp3Route.length());
+			String [] Strings = info.split("sound");
+			String Mp3Route = null;
+			for(int i = 0;i < Strings.length;i++)
+			{
+				if(Strings[i].charAt(2) == 'h')
+				{
+					Mp3Route = Strings[i];
+					break;
+				}
+			}
+
 			try
 			{
+				Mp3Route = Mp3Route.substring(0, Mp3Route.lastIndexOf("mp3")) + "mp3";
+				Mp3Route = Mp3Route.substring(Mp3Route.indexOf("http"),Mp3Route.length());
 				Http.DownLoadFromUrl(Mp3Route, word + ".mp3", "sound");
-			} catch (IOException e)
+			} catch (Exception e)
 			{
 				e.printStackTrace();
 			}
+		}
+		else
+		{
+			System.out.println(word + " : " + info);
+			System.exit(0);
 		}
 		// phonetic
 		content = FilterString(s.split("phonetic")[2]);
@@ -216,7 +242,20 @@ public class words
 		s = s.substring(0, start);
 		return s;
 	}
-
+	private static void WriteToHtml(String content,String filename)
+	{
+		try
+		{
+			BufferedOutputStream bo = new BufferedOutputStream(new FileOutputStream(filename));
+			bo.write(content.getBytes());
+			bo.close();
+		} catch (Exception e)
+		{
+			// TODO 自动生成的 catch 块
+			e.printStackTrace();
+		}
+		
+	}
 	
 }
 

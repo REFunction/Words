@@ -229,7 +229,7 @@ public class GUI extends JFrame
 			public void keyPressed(KeyEvent e)
 			{  
                 int keycode = e.getKeyCode();
-                if(keycode == KeyEvent.VK_1 && YesBtn.isEnabled())
+                if(keycode == KeyEvent.VK_1 ||keycode == KeyEvent.VK_UP && YesBtn.isEnabled())
                 {  
                 	words.Yes(NowWord);
     				NoBtn.setEnabled(true);
@@ -237,7 +237,7 @@ public class GUI extends JFrame
     				ShowChinese(NowWord);
     				words.Speak(NowWord);
                 }  
-                else if(keycode == KeyEvent.VK_2 && NoBtn.isEnabled())
+                else if(keycode == KeyEvent.VK_2 ||keycode == KeyEvent.VK_DOWN && NoBtn.isEnabled())
                 {
                 	words.No(NowWord);
     				NoBtn.setEnabled(false);
@@ -270,6 +270,8 @@ public class GUI extends JFrame
     				RemoveChinese();
 
                 }
+                else if(keycode == KeyEvent.VK_SPACE)
+                	words.Speak(NowWord);
             }  
 		});
 		

@@ -10,9 +10,11 @@ public class WordSearchOnline implements Runnable
 	@Override
 	public void run()
 	{
-		words.NowThreadNum++;
+		//System.out.println(Word + " start");
+		words.NowThreadNum.getAndIncrement();
 		w = words.SearchWordOnline(Word);
 		words.WordsMap.put(Word, w);
-		words.NowThreadNum--;
+		words.NowThreadNum.getAndDecrement();
+		//System.out.println(Word + " end");
 	}
 }
