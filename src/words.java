@@ -1,6 +1,7 @@
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -17,7 +18,7 @@ public class words
 	static String WordRoute = "words.txt";
 	static HashMap<String, Word> WordsMap = new HashMap<>();
 	static int LearnTimes = 3;
-	static int TotalNum = 0;
+	static AtomicInteger TotalNum = new AtomicInteger(0);
 	static int FinishedNum = 0;
 	static int MaxThreadNum = 8;
 	static AtomicInteger NowThreadNum = new AtomicInteger(0);
@@ -31,21 +32,21 @@ public class words
 			String line = null;
 			while ((line = br.readLine()) != null)
 			{
-				if (line.length() > 0)
-					TotalNum++;
+				if (line.length() > 0 && !line.equals("\n"))
+					TotalNum.getAndIncrement();
 			}
-			MaxThreadNum = TotalNum;
+			MaxThreadNum = TotalNum.get();
 			if (MaxThreadNum > 30)
 				MaxThreadNum = 30;
 			if (MaxThreadNum <= 0)
 				MaxThreadNum = 1;
 
-			GUI.ProcessBar.setMaximum(TotalNum);
+			GUI.ProcessBar.setMaximum(TotalNum.get());
 			br.close();
 			br = new BufferedReader(new FileReader(WordRoute));
 			while ((line = br.readLine()) != null)
 			{
-				if (line.length() == 0)
+				if (line.length() == 0 || line.equals("\n"))
 					continue;
 				String English = line;
 				while (NowThreadNum.get() >= MaxThreadNum)
@@ -96,7 +97,7 @@ public class words
 
 	public static String GetNextWord(String LastWord)
 	{
-		if (TotalNum == 0)
+		if (TotalNum.get() == 0)
 			return "No words.txt";
 		if (WordsMap.keySet().size() == 1)
 		{
@@ -154,7 +155,10 @@ public class words
 		{			
 			s = Http.httpRequest("http://dict.youdao.com/w/eng/" + word + "/#keyfrom=dict2.index", "GET", null);
 			if (s.contains("您要找的是不是"))
+			{
 				return null;
+			}
+				
 			content = s.split("trans-container")[1];
 		}while(!content.contains("<li>"));
 		
@@ -169,35 +173,40 @@ public class words
 			w.Chinese.add(Chinese);
 		}
 		//获取发音
-		String info = Http.httpRequest("http://www.iciba.com/" + word, "GET", null);
-		if (info.contains("sound"))
+		File file = new File("sound/" + word + ".mp3");
+		if(!file.exists())
 		{
-			String [] Strings = info.split("sound");
-			String Mp3Route = null;
-			for(int i = 0;i < Strings.length;i++)
+			String info = Http.httpRequest("http://www.iciba.com/" + word, "GET", null);
+			if (info.contains("sound"))
 			{
-				if(Strings[i].charAt(2) == 'h')
+				String [] Strings = info.split("sound");
+				String Mp3Route = null;
+				for(int i = 0;i < Strings.length;i++)
 				{
-					Mp3Route = Strings[i];
-					break;
+					if(Strings[i].charAt(2) == 'h')
+					{
+						Mp3Route = Strings[i];
+						break;
+					}
+				}
+
+				try
+				{
+					Mp3Route = Mp3Route.substring(0, Mp3Route.lastIndexOf("mp3")) + "mp3";
+					Mp3Route = Mp3Route.substring(Mp3Route.indexOf("http"),Mp3Route.length());
+					Http.DownLoadFromUrl(Mp3Route, word + ".mp3", "sound");
+				} catch (Exception e)
+				{
+					e.printStackTrace();
 				}
 			}
-
-			try
+			else
 			{
-				Mp3Route = Mp3Route.substring(0, Mp3Route.lastIndexOf("mp3")) + "mp3";
-				Mp3Route = Mp3Route.substring(Mp3Route.indexOf("http"),Mp3Route.length());
-				Http.DownLoadFromUrl(Mp3Route, word + ".mp3", "sound");
-			} catch (Exception e)
-			{
-				e.printStackTrace();
+				System.out.println(word + " : " + info);
+				System.exit(0);
 			}
 		}
-		else
-		{
-			System.out.println(word + " : " + info);
-			System.exit(0);
-		}
+		
 		// phonetic
 		content = FilterString(s.split("phonetic")[2]);
 		if (!content.contains("[")) // 短语没有音标

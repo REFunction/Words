@@ -123,7 +123,7 @@ public class GUI extends JFrame
 		ProcessBar = new JProgressBar();
 		ProcessBar.setBounds(-1, 361, 500, 10);
 		ProcessBar.setBorder(null);
-		ProcessBar.setMaximum(words.TotalNum);
+		ProcessBar.setMaximum(words.TotalNum.get());
 		ProcessBar.setForeground(Color.GREEN);
 		MainPanel.add(ProcessBar);
 	}
@@ -228,7 +228,9 @@ public class GUI extends JFrame
 		{
 			public void keyPressed(KeyEvent e)
 			{  
-                int keycode = e.getKeyCode();
+                if(NowWord.equals("All Finished"))
+                	return;
+				int keycode = e.getKeyCode();
                 if(keycode == KeyEvent.VK_1 ||keycode == KeyEvent.VK_UP && YesBtn.isEnabled())
                 {  
                 	words.Yes(NowWord);
@@ -254,7 +256,7 @@ public class GUI extends JFrame
                 	if(YesBtn.isEnabled() && NoBtn.isEnabled())
     					return;
                 	if((!YesBtn.isEnabled()) && NoBtn.isEnabled() && 
-                			words.WordsMap.get(NowWord).RemainingNum == 0)
+                			words.WordsMap.get(NowWord).RemainingNum <= 0)
     					words.Delete(NowWord);
                 	YesBtn.setEnabled(true);
                 	NoBtn.setEnabled(true);
@@ -268,7 +270,6 @@ public class GUI extends JFrame
     				NowWord = NextWord;
     				WordField.setText(NextWord);
     				RemoveChinese();
-
                 }
                 else if(keycode == KeyEvent.VK_SPACE)
                 	words.Speak(NowWord);

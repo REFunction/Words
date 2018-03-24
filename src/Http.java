@@ -39,7 +39,9 @@ public class Http
         }  
         }catch(Exception e){  
             e.printStackTrace();  
-        }  
+        } 
+        if(buffer == null)
+        	System.out.println(requestUrl);
         return buffer.toString();  
     }
     public static void DownLoadFromUrl(String urlStr, String fileName, String savePath) throws IOException
