@@ -6,9 +6,12 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,16 +19,31 @@ import java.util.regex.Pattern;
 public class words
 {
 	static String WordRoute = "words.txt";
+	static List<File> WordFiles = new ArrayList<>();
 	static HashMap<String, Word> WordsMap = new HashMap<>();
 	static int LearnTimes = 3;
 	static AtomicInteger TotalNum = new AtomicInteger(0);
 	static int FinishedNum = 0;
 	static int MaxThreadNum = 8;
 	static AtomicInteger NowThreadNum = new AtomicInteger(0);
+	static AtomicBoolean IsReading = new AtomicBoolean(false);
 
-	public static void ReadOnlyWordsFromFile()
+	
+	public static void ReadFromFiles()
+	{
+		for (int i = 0; i < WordFiles.size(); i++)
+		{
+			GUI.WordField.setText(WordFiles.get(i).getName());
+			words.ReadOnlyWordsFromFile(WordFiles.get(i).getAbsolutePath());
+		}
+		WordFiles = new ArrayList<>();
+		GUI.SetFirst();
+		words.IsReading.set(false);
+	}
+	public static void ReadOnlyWordsFromFile(String WordRoute)
 	{
 		BufferedReader br = null;
+		AtomicInteger FileSize = new AtomicInteger(0);
 		try
 		{
 			br = new BufferedReader(new FileReader(WordRoute));
@@ -33,15 +51,20 @@ public class words
 			while ((line = br.readLine()) != null)
 			{
 				if (line.length() > 0 && !line.equals("\n"))
+				{
+					FileSize.getAndIncrement();
 					TotalNum.getAndIncrement();
+				}
 			}
-			MaxThreadNum = TotalNum.get();
+			MaxThreadNum = FileSize.get();
 			if (MaxThreadNum > 30)
 				MaxThreadNum = 30;
 			if (MaxThreadNum <= 0)
 				MaxThreadNum = 1;
 
-			GUI.ProcessBar.setMaximum(TotalNum.get());
+			GUI.ProcessBar.setMaximum(FileSize.get());
+			GUI.ProcessBar.setValue(0);
+			
 			br.close();
 			br = new BufferedReader(new FileReader(WordRoute));
 			while ((line = br.readLine()) != null)
@@ -51,14 +74,16 @@ public class words
 				String English = line;
 				while (NowThreadNum.get() >= MaxThreadNum)
 					Thread.sleep(300);
-				new Thread(new WordSearchOnline(English)).start();
+				new Thread(new WordSearchOnline(English,FileSize)).start();
 				GUI.ProcessBar.setValue(WordsMap.size());
+				GUI.ProcessBar.setString(String.valueOf(TotalNum.get() - FinishedNum));
 			}
 			br.close();
 			while (NowThreadNum.get() != 0)
 			{
 				Thread.sleep(300);
 				GUI.ProcessBar.setValue(WordsMap.size());
+				GUI.ProcessBar.setString(String.valueOf(TotalNum.get() - FinishedNum));
 			}
 			GUI.ProcessBar.setValue(0);
 
@@ -67,7 +92,7 @@ public class words
 			e.printStackTrace();
 		}
 	}
-
+	
 	public static boolean IsChinese(String str)
 	{
 		String regEx = "[\u4e00-\u9fa5]";
@@ -98,7 +123,7 @@ public class words
 	public static String GetNextWord(String LastWord)
 	{
 		if (TotalNum.get() == 0)
-			return "No words.txt";
+			return "Drag your files";
 		if (WordsMap.keySet().size() == 1)
 		{
 			return WordsMap.keySet().iterator().next();
@@ -144,6 +169,7 @@ public class words
 		WordsMap.remove(word);
 		FinishedNum++;
 		GUI.SetProcess(FinishedNum);
+		GUI.ProcessBar.setString(String.valueOf(TotalNum.get() - FinishedNum));
 	}
 
 	public static Word SearchWordOnline(String word)
@@ -251,21 +277,6 @@ public class words
 		s = s.substring(0, start);
 		return s;
 	}
-	private static void WriteToHtml(String content,String filename)
-	{
-		try
-		{
-			BufferedOutputStream bo = new BufferedOutputStream(new FileOutputStream(filename));
-			bo.write(content.getBytes());
-			bo.close();
-		} catch (Exception e)
-		{
-			// TODO 自动生成的 catch 块
-			e.printStackTrace();
-		}
-		
-	}
-	
 }
 
 class Word
